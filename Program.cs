@@ -1,45 +1,22 @@
 ﻿using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore;
-
-using NetCord.Gateway;
-using NetCord.Services;
-using NetCord.Services.Commands;
-
 using NetCord.Hosting.Gateway;
-using NetCord.Hosting.Services;
-using NetCord.Hosting.Services.Commands;
 
+using NetCord.Hosting.Services.ApplicationCommands;
+using NetCord.Services.ApplicationCommands;
+using NetCord.Gateway;
 using HutaoWaifuBot;
-using HutaoWaifuBot.Database;
-using HutaoWaifuBot.Commands;
+using NetCord;
 
-var builder = Host.CreateApplicationBuilder(args);
-
-var dbPath = "Database/hutaowaifubot.db";
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 builder.Services
-    .AddDbContext<WaifuBotContext>(options =>
-        options.UseSqlite($"Data Source={dbPath}"));
+	.AddDiscordGateway(static options =>
+	{
+		options.Intents = GatewayIntents.GuildMessages | GatewayIntents.DirectMessages | GatewayIntents.MessageContent;
+	}).AddApplicationCommands<SlashCommandInteraction, SlashCommandContext>();
 
-builder.Services
-    .AddDiscordGateway(options =>
-    {
-        options.Intents = GatewayIntents.GuildMessages | GatewayIntents.DirectMessages | GatewayIntents.MessageContent;
-    })
-    .AddCommands<CommandContext>();
-
-var host = builder.Build();
- .AddCommand<CommandContext>(["waifu", "w"], () => new WaifuCommand("Data Source=Database/hutaowaifubot.db"))
- .AddCommand<CommandContext>(["ping"], () => "Pong!")
- .AddModules(typeof(Program).Assembly)
- .UseGatewayEventHandlers();
-
-using (var scope = host.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<WaifuBotContext>();
-    context.Database.Migrate();
-    CharacterSeedData.SeedCharacters(context);
-}
+IHost host = builder.Build()
+	.AddApplicationCommandModule<SlashCommandContext>(typeof(WaifuCommand))
+	.UseGatewayEventHandlers();
 
 await host.RunAsync();
